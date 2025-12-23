@@ -1,4 +1,3 @@
-
 import { Peer, DataConnection } from 'peerjs';
 import { MultiplayerEvent } from '../types';
 
@@ -55,18 +54,18 @@ class MultiplayerService {
         reject(new Error("Connection to signaling server timed out."));
       }, 10000);
 
-      this.peer.on('open', (id) => {
+      (this.peer as any).on('open', (id: string) => {
         clearTimeout(timeout);
         this.myId = id;
         resolve(id);
       });
 
-      this.peer.on('connection', (conn) => {
+      (this.peer as any).on('connection', (conn: DataConnection) => {
         this.connections.push(conn);
         this.setupConnectionEvents(conn);
       });
 
-      this.peer.on('error', (err) => {
+      (this.peer as any).on('error', (err: any) => {
         clearTimeout(timeout);
         console.error('PeerJS Host Error:', err);
         reject(err);
@@ -82,7 +81,10 @@ class MultiplayerService {
       this.isHost = false;
       
       try {
-        this.peer = new Peer(undefined, PEER_CONFIG); // Client gets random ID
+        // FIX: Generate a random ID for the client instead of passing undefined
+        // to satisfy strict TypeScript requirements
+        const clientId = 'cadet-' + Math.random().toString(36).substring(2, 7);
+        this.peer = new Peer(clientId, PEER_CONFIG); 
       } catch (e) {
         reject(e);
         return;
@@ -93,7 +95,7 @@ class MultiplayerService {
         reject(new Error("Connection to signaling server timed out."));
       }, 10000);
 
-      this.peer.on('open', (id) => {
+      (this.peer as any).on('open', (id: string) => {
         clearTimeout(timeout);
         this.myId = id;
         if (!this.peer) return;
@@ -101,19 +103,19 @@ class MultiplayerService {
         // Connect to host
         const conn = this.peer.connect(sessionId, { reliable: true });
         
-        conn.on('open', () => {
+        (conn as any).on('open', () => {
           this.hostConnection = conn;
           this.setupConnectionEvents(conn);
           resolve();
         });
         
-        conn.on('error', (err) => {
+        (conn as any).on('error', (err: any) => {
             console.error('Connection Error:', err);
             reject(err);
         });
       });
 
-      this.peer.on('error', (err) => {
+      (this.peer as any).on('error', (err: any) => {
          clearTimeout(timeout);
          console.error('PeerJS Client Error:', err);
          reject(err);
@@ -122,7 +124,7 @@ class MultiplayerService {
   }
 
   private setupConnectionEvents(conn: DataConnection) {
-    conn.on('data', (data) => {
+    (conn as any).on('data', (data: any) => {
       const event = data as MultiplayerEvent;
       
       // If Host receives data, broadcast it to others (Mesh/Star topology)
@@ -135,7 +137,7 @@ class MultiplayerService {
       }
     });
 
-    conn.on('close', () => {
+    (conn as any).on('close', () => {
       this.connections = this.connections.filter(c => c.peer !== conn.peer);
     });
   }
