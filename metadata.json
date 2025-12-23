@@ -1,0 +1,7 @@
+{
+  "name": "Naval Escape: Engine Room Blackout",
+  "description": "A digital escape room scenario for Naval NCO students focusing on emergency troubleshooting and technical English. Features a generator failure simulation.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
