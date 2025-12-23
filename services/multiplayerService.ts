@@ -1,4 +1,3 @@
-
 import { Peer, DataConnection } from 'peerjs';
 import { MultiplayerEvent } from '../types';
 
@@ -31,20 +30,18 @@ class MultiplayerService {
     this.connections = [];
     this.hostConnection = null;
     this.isHost = false;
-    // Do NOT clear listeners here, as the UI component stays mounted
   }
 
   // Initialize as Host
   createSession(username: string): Promise<string> {
-    this.disconnect(); // Clean up any previous state
+    this.disconnect();
 
     return new Promise((resolve, reject) => {
       this.isHost = true;
-      // Prefix ID to make it identifiable on public server
       const uniqueId = 'naval-sim-' + Math.random().toString(36).substring(2, 7);
       
       try {
-        // @ts-ignore - Bypass strict type checks for Peer constructor
+        // @ts-ignore
         this.peer = new (Peer as any)(uniqueId, PEER_CONFIG);
       } catch (e) {
         reject(e);
@@ -77,15 +74,19 @@ class MultiplayerService {
 
   // Initialize as Client
   joinSession(username: string, sessionId: string): Promise<void> {
-    this.disconnect(); // Clean up any previous state
+    this.disconnect();
 
     return new Promise((resolve, reject) => {
       this.isHost = false;
       
+      if (!sessionId) {
+        reject(new Error("Session ID is required"));
+        return;
+      }
+
       try {
-        // Generate a random ID for the client to ensure unique connection
         const clientId = 'cadet-' + Math.random().toString(36).substring(2, 7);
-        // @ts-ignore - Bypass strict type checks for Peer constructor
+        // @ts-ignore
         this.peer = new (Peer as any)(clientId, PEER_CONFIG); 
       } catch (e) {
         reject(e);
@@ -102,9 +103,8 @@ class MultiplayerService {
         this.myId = id;
         if (!this.peer) return;
         
-        // Connect to host
-        // @ts-ignore - Bypass strict type check for connect method args
-        const conn = this.peer.connect(sessionId, { reliable: true });
+        // sessionId string olarak zorlandı
+        const conn = (this.peer as any).connect(sessionId, { reliable: true });
         
         (conn as any).on('open', () => {
           this.hostConnection = conn;
@@ -130,12 +130,10 @@ class MultiplayerService {
     (conn as any).on('data', (data: any) => {
       const event = data as MultiplayerEvent;
       
-      // If Host receives data, broadcast it to others (Mesh/Star topology)
       if (this.isHost) {
-        this.broadcast(event, conn.peer); // Don't send back to sender
+        this.broadcast(event, conn.peer);
         this.notifyListeners(event);
       } else {
-        // If Client receives data, just process it
         this.notifyListeners(event);
       }
     });
@@ -145,15 +143,10 @@ class MultiplayerService {
     });
   }
 
-  // Send message
   send(event: MultiplayerEvent) {
     if (this.isHost) {
-      // Host sends to everyone
       this.broadcast(event);
-      // Host also processes its own events locally instantly
-      // (This logic is usually handled in the UI, but ensuring listeners get it is good practice if architecture demands)
     } else if (this.hostConnection) {
-      // Client sends to Host
       this.hostConnection.send(event);
     }
   }
